@@ -1,0 +1,6 @@
+{
+  "name": "SkillBridge AI",
+  "description": "Smart personalized career companion matching users with career opportunities, simulated interview prep, and AI-guided skill analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
