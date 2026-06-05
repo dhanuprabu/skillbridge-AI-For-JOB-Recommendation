@@ -246,10 +246,17 @@ export default function App() {
       setActiveTab("dashboard");
     } catch (err: any) {
       console.warn("Backend API issue, utilizing premium simulated local evaluation core:", err);
-      // Beautiful fallback notification with static mockup core
-      setApiError(
-        `Gemini API key is not configured in Settings. Showing sandbox simulations for "${context.name}" using local client matching core!`
-      );
+      
+      // Determine if running on production custom host (like Render) or local container preview
+      const isProductionHost = !window.location.hostname.includes("asia-southeast1.run.app") && 
+                               !window.location.hostname.includes("localhost") && 
+                               !window.location.hostname.includes("127.0.0.1");
+      
+      const errorMessage = isProductionHost
+        ? `GEMINI_API_KEY is not configured on your hosting provider. To run live AI features in production, go to your Render/Vercel dashboard, navigate to "Environment Variables", and add "GEMINI_API_KEY" with your Gemini API key as the value.`
+        : `Gemini API key is not configured in Settings. Showing sandbox simulations for "${context.name}" using local client matching core!`;
+
+      setApiError(errorMessage);
       
       // Auto-fallback mock data with customized user parameters to keep it high fidelity
       const simulatedData: AIRecommendationResponse = {
@@ -541,7 +548,9 @@ export default function App() {
             <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 flex gap-3 text-amber-300">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" />
               <div>
-                <span className="text-xs font-bold block mb-0.5">Sandbox Simulations Loaded</span>
+                <span className="text-xs font-bold block mb-0.5">
+                  {apiError.includes("hosting provider") ? "Production API Key Required" : "Sandbox Simulations Loaded"}
+                </span>
                 <p className="text-[11px] leading-relaxed font-light text-slate-300">
                   {apiError}
                 </p>
