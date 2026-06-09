@@ -9,7 +9,7 @@ dotenv.config();
 // Lazy initialize the Google Gen AI client
 let aiClient: GoogleGenAI | null = null;
 function getAiClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_Key || process.env.gemini_api_key;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY environment variable is not defined. Please set it in Settings > Secrets.");
   }

@@ -33,6 +33,12 @@ import CareerPathsView from "./components/CareerPathsView";
 import OpportunitiesView from "./components/OpportunitiesView";
 import PrepView from "./components/PrepView";
 import SkillsRoadmapView from "./components/SkillsRoadmapView";
+import { 
+  generateRecommendations as apiGenerateRecommendations, 
+  analyzeResume as apiAnalyzeResume, 
+  sendChatMessage as apiSendChatMessage,
+  getGeminiApiKey
+} from "./utils/geminiClient";
 
 export default function App() {
   // Theme state
@@ -99,27 +105,7 @@ export default function App() {
           const base64Data = base64WithMime.split(",")[1];
           const mimeType = file.type || "text/plain";
 
-          const response = await fetch("/api/analyze-resume", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              fileData: base64Data,
-              mimeType: mimeType,
-              fileName: file.name,
-              careerInterest: context.careerInterest,
-              experienceLevel: context.experienceLevel,
-              customExpectations: context.customExpectations
-            })
-          });
-
-          if (!response.ok) {
-            const errDetails = await response.json().catch(() => ({}));
-            throw new Error(errDetails.error || `HTTP Error ${response.status}`);
-          }
-
-          const result = await response.json();
+          const result = await apiAnalyzeResume(base64Data, mimeType, file.name, context);
           
           // Auto-update candidate fields extracted by Gemini!
           setContext(prev => ({
@@ -215,20 +201,7 @@ export default function App() {
     setApiError(null);
 
     try {
-      const response = await fetch("/api/recommendations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(context),
-      });
-
-      if (!response.ok) {
-        const errDetails = await response.json().catch(() => ({}));
-        throw new Error(errDetails.error || `HTTP Error ${response.status}`);
-      }
-
-      const generatedData: AIRecommendationResponse = await response.json();
+      const generatedData = await apiGenerateRecommendations(context);
       setRecommendations(generatedData);
       
       // Seed initial custom bot greet statement with context
@@ -247,13 +220,13 @@ export default function App() {
     } catch (err: any) {
       console.warn("Backend API issue, utilizing premium simulated local evaluation core:", err);
       
-      // Determine if running on production custom host (like Render) or local container preview
+      // Determine if running on production custom host (like Render/Netlify) or local container preview
       const isProductionHost = !window.location.hostname.includes("asia-southeast1.run.app") && 
                                !window.location.hostname.includes("localhost") && 
                                !window.location.hostname.includes("127.0.0.1");
       
       const errorMessage = isProductionHost
-        ? `GEMINI_API_KEY is not configured on your hosting provider. To run live AI features in production, go to your Render/Vercel dashboard, navigate to "Environment Variables", and add "GEMINI_API_KEY" with your Gemini API key as the value.`
+        ? `GEMINI_API_KEY (or VITE_GEMINI_API_KEY) has not been configured on your hosting provider. To enable live AI features, add either "GEMINI_API_KEY" (Render) or "VITE_GEMINI_API_KEY" (Netlify) with your key in the dashboard environment settings.`
         : `Gemini API key is not configured in Settings. Showing sandbox simulations for "${context.name}" using local client matching core!`;
 
       setApiError(errorMessage);
@@ -300,28 +273,13 @@ export default function App() {
         content: m.content
       }));
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          messages: conversationHistory,
-          context: context
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to receive feedback stream");
-      }
-
-      const result = await response.json();
+      const responseText = await apiSendChatMessage(conversationHistory, context);
       setChatMessages(prev => [
         ...prev,
         {
           id: `bot-${Date.now()}`,
           role: "bot",
-          content: result.text || "I was unable to assess this query correctly. Let's focus on cloud architecture and core study schedules!",
+          content: responseText || "I was unable to assess this query correctly. Let's focus on cloud architecture and core study schedules!",
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
